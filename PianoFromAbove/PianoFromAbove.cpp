@@ -23,6 +23,14 @@
 #include "GameState.h"
 #include "Renderer.h"
 #include "Misc.h"
+#include "BASSMIDI.h"
+#include "MIDIPreRenderPlayer.h"
+
+#include <Mmdeviceapi.h>
+#include <Audiopolicy.h>
+#include <Audioclient.h>
+
+#include "sdl2/SDL.h"
 
 // Yes, I know you shouldn't store build numbers as doubles
 constexpr double BUILD_VERSION = 20240112;
@@ -109,6 +117,11 @@ DWORD WINAPI UpdateCheckProc(LPVOID) {
 
     return 0;
 }
+
+const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
+const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
+const IID IID_IAudioClient = __uuidof(IAudioClient);
+const IID IID_IAudioRenderClient = __uuidof(IAudioRenderClient);
 
 //-----------------------------------------------------------------------------
 // Name: wWinMain()
@@ -286,7 +299,8 @@ DWORD WINAPI GameThread( LPVOID lpParameter )
         pGameState->Logic();
         pGameState->Render();
     }
-
+    //SDL_PauseAudio(1);
+    //SDL_CloseAudio();
     delete pGameState;
     delete pRenderer;
 

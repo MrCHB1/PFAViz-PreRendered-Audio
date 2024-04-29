@@ -18,7 +18,10 @@
 #include "Config.h"
 #include "resource.h"
 #include "ConfigProcs.h"
+#include "BASSMIDI.h"
+#include "MIDIPreRenderPlayer.h";
 #include <d3d9types.h>
+#include <fstream>
 
 const wstring GameState::Errors[] =
 {
@@ -129,6 +132,7 @@ SplashScreen::SplashScreen( HWND hWnd, D3D12Renderer *pRenderer ) : GameState( h
 
     Config& config = Config::GetConfig();
     VizSettings viz = config.GetVizSettings();
+    static AudioSettings audio = config.GetAudioSettings();
 
     // Parse MIDI
     if (!viz.sSplashMIDI.empty()) {
@@ -153,9 +157,59 @@ SplashScreen::SplashScreen( HWND hWnd, D3D12Renderer *pRenderer ) : GameState( h
     for (int i = 0; i < 128; i++)
         m_vState[i].reserve(128);
 
+    // Try to Initialize Prerendered audio
+    WAVEFORMATEX format;
+    format.nSamplesPerSec = 48000;
+    format.nChannels = 2;
+    format.nBlockAlign = (2 * 32) / 8;
+    format.wBitsPerSample = 32;
+    format.nAvgBytesPerSec = format.nSamplesPerSec * (2 * 32) / 8;
+    format.wFormatTag = WAVE_FORMAT_PCM;
+
+    BASSMIDI::InitBASS(format);
+
+    if (!audio.sPreSoundfontPath.empty())
+        BASSMIDI::LoadSoundfont(audio.sPreSoundfontPath.c_str());
+    else
+    {
+        HRSRC rc = FindResourceW(NULL, MAKEINTRESOURCE(IDR_PRESF), TEXT("MIDI\0"));
+        HGLOBAL rcData = LoadResource(NULL, rc);
+        int rSize = SizeofResource(NULL, rc);
+        unsigned char* data = (unsigned char*)LockResource(rcData);
+
+        WCHAR path[1024]{ };
+        GetModuleFileNameW(NULL, path, 1024);
+        std::wstring::size_type pos = std::wstring(path).find_last_of(L"\\/");
+        wstringstream ps;
+        ps << std::wstring(path).substr(0, pos).c_str() << "\\Soundfonts";
+
+        CreateDirectory(ps.str().c_str(), NULL);
+
+        ps << "\\GeneralUser GS v1.471.sf2";
+        std::ofstream file;
+        file.open(ps.str().c_str(), std::ios::binary);
+        file.write((char*)data, rSize);
+        file.close();
+
+        BASSMIDI::LoadSoundfont(ps.str().c_str());
+    }
+
+    PRE_InitAudio();
+    //BASSMIDI::InitBASS()
+    PRE_MIDIAudio = new MIDIAudio(PRE_BufferSize * PRE_BufferSecs);
+    PRE_MIDIAudio->m_bPaused = false;
+
+    PRE_MIDIAudio->m_dAttack = (double)audio.iPreLMAttack / 1000;
+    PRE_MIDIAudio->m_dRelease = (double)audio.iPreLMRelease / 1000;
+    PRE_MIDIAudio->m_iDefaultVoices = audio.iPreVoices;
+    PRE_MIDIAudio->m_dFPS = (double)audio.dPreFPS;
+
     // Initialize
     //InitNotes( vEvents );
     InitState();
+
+    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents);
+    SDL_PauseAudio(0);
 }
 
 void SplashScreen::InitNotes( const vector< MIDIEvent* > &vEvents )
@@ -271,8 +325,12 @@ GameState::GameError SplashScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, 
             switch( wParam )
             {
                 case VK_SPACE:
-                    cPlayback.TogglePaused( true );
+                {
+                    cPlayback.TogglePaused(true);
+                    PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
                     return Success;
+                }
+                    
             }
         }
     }
@@ -332,11 +390,11 @@ GameState::GameError SplashScreen::Logic()
     while ( m_iStartPos < iEventCount && m_vEvents[m_iStartPos]->GetAbsMicroSec() <= m_llStartTime )
     {
         MIDIChannelEvent *pEvent = m_vEvents[m_iStartPos];
-        if ( pEvent->GetChannelEventType() != MIDIChannelEvent::NoteOn )
-            m_OutDevice.PlayEvent( pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2() );
-        else if ( !m_bMute && !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted )
-            m_OutDevice.PlayEvent( pEvent->GetEventCode(), pEvent->GetParam1(),
-                                    static_cast< int >( pEvent->GetParam2() * dVolumeCorrect + 0.5 ) );
+        //if ( pEvent->GetChannelEventType() != MIDIChannelEvent::NoteOn )
+        //    //m_OutDevice.PlayEvent( pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2() );
+       // else if ( !m_bMute && !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted )
+            //m_OutDevice.PlayEvent( pEvent->GetEventCode(), pEvent->GetParam1(),
+            //                        static_cast< int >( pEvent->GetParam2() * dVolumeCorrect + 0.5 ) );
         UpdateState( m_iStartPos );
         m_iStartPos++;
     }
@@ -395,7 +453,7 @@ int sse_bin_search(const std::vector<int>& data, int key) {
                 v = _mm_cmpeq_epi32(v, keys);
                 const uint16_t mask = _mm_movemask_epi8(v);
                 if (mask) {
-                    return b - 4 + __builtin_ctz(mask) / 4;
+                    return b - 4 + _tzcnt_u32(mask) / 4;
                 }
             }
         }
@@ -407,7 +465,7 @@ int sse_bin_search(const std::vector<int>& data, int key) {
                 v = _mm_cmpeq_epi32(v, keys);
                 const uint16_t mask = _mm_movemask_epi8(v);
                 if (mask) {
-                    return a + __builtin_ctz(mask) / 4;
+                    return a + _tzcnt_u32(mask) / 4;
                 }
             }
         }
@@ -591,6 +649,11 @@ float SplashScreen::GetNoteX(int iNote) {
 MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, D3D12Renderer *pRenderer ) :
     GameState( hWnd, pRenderer ), m_MIDI( sMIDIFile ), m_eGameMode( eGameMode )
 {
+    static Config& config = Config::GetConfig();
+    static const PlaybackSettings& cPlayback = config.GetPlaybackSettings();
+
+    SDL_PauseAudio(1);
+
     // Finish off midi processing
     if ( !m_MIDI.IsValid() ) return;
     m_MIDI.ConnectNotes(); // Order's important here
@@ -602,9 +665,16 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, D3D12Rend
     for (auto note_state : m_vState)
         note_state.reserve(m_MIDI.GetInfo().iNumTracks * 16);
 
+    PRE_MIDIAudio->Stop();
+    PRE_MIDIAudio->m_bPaused = false;
+    //PRE_MIDIAudio->Start((double)(m_MIDI.GetInfo().llFirstNote - 3000000) / 1000000.0, m_vEvents, 1.0);
+
     // Initialize
     InitColors();
     InitState();
+
+    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed());
+    SDL_PauseAudio(0);
 
     g_LoadingProgress.stage = MIDILoadingProgress::Stage::Done;
 }
@@ -828,12 +898,19 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                 case ID_PLAY_STOP:
                     JumpTo(GetMinTime());
                     cPlayback.SetStopped(true);
+                    PRE_MIDIAudio->m_bPaused = true;
                     return Success;
                 case ID_PLAY_SKIPFWD:
                     JumpTo(static_cast<long long>(m_llStartTime + cControls.dFwdBackSecs * 1000000));
+                    PRE_MIDIAudio->Stop();
+                    PRE_MIDIAudio->m_bPaused = true;
+                    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
                     return Success;
                 case ID_PLAY_SKIPBACK:
                     JumpTo(static_cast<long long>(m_llStartTime - cControls.dFwdBackSecs * 1000000));
+                    PRE_MIDIAudio->Stop();
+                    PRE_MIDIAudio->m_bPaused = true;
+                    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
                     return Success;
                 case ID_VIEW_RESETDEVICE:
                     m_pRenderer->ResetDevice();
@@ -879,38 +956,75 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
             {
                 case VK_SPACE:
                     cPlayback.TogglePaused( true );
+                    PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
                     return Success;
                 case VK_OEM_PERIOD:
                     JumpTo(GetMinTime());
                     cPlayback.SetStopped(true);
+                    PRE_MIDIAudio->m_bPaused = true;
+                    PRE_MIDIAudio->StartRender(GetMinTime(), true, &m_vEvents, cPlayback.GetSpeed());
                     return Success;
                 case VK_UP:
-                    if ( bAlt && !bCtrl )
-                        cPlayback.SetVolume( min( cPlayback.GetVolume() + 0.1, 1.0 ), true );
-                    else if ( bShift && !bCtrl )
-                        cPlayback.SetNSpeed( cPlayback.GetNSpeed() * ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
-                    else if ( !bAlt && !bShift )
-                        cPlayback.SetSpeed( cPlayback.GetSpeed() / ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
+                    if (bAlt && !bCtrl)
+                    {
+                        cPlayback.SetVolume(min(cPlayback.GetVolume() + 0.1, 1.0), true);
+                        g_preVolume = min(cPlayback.GetVolume() + 0.1, 1.0);
+                    }
+                    else if (bShift && !bCtrl)
+                    {
+                        cPlayback.SetNSpeed(cPlayback.GetNSpeed() * (1.0 + cControls.dSpeedUpPct / 100.0), true);
+                    }
+                    else if (!bAlt && !bShift)
+                    {
+                        cPlayback.SetSpeed(cPlayback.GetSpeed() / (1.0 + cControls.dSpeedUpPct / 100.0), true);
+                        PRE_MIDIAudio->Stop();
+                        PRE_MIDIAudio->m_bPaused = false;
+                        PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed());
+                    }
                     return Success;
                 case VK_DOWN:
                     if ( bAlt && !bShift && !bCtrl )
+                    {
                         cPlayback.SetVolume( max( cPlayback.GetVolume() - 0.1, 0.0 ), true );
-                    else if ( bShift && !bAlt && !bCtrl )
-                        cPlayback.SetNSpeed( cPlayback.GetNSpeed() / ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
-                    else if ( !bAlt && !bShift )
-                        cPlayback.SetSpeed( cPlayback.GetSpeed() * ( 1.0 + cControls.dSpeedUpPct / 100.0 ), true );
+                        g_preVolume = max(cPlayback.GetVolume() - 0.1, 0.0);
+                    }
+                    else if (bShift && !bAlt && !bCtrl)
+                    {
+                        cPlayback.SetNSpeed(cPlayback.GetNSpeed() / (1.0 + cControls.dSpeedUpPct / 100.0), true);
+                    }
+                    else if (!bAlt && !bShift)
+                    {
+                        cPlayback.SetSpeed(cPlayback.GetSpeed() * (1.0 + cControls.dSpeedUpPct / 100.0), true);
+                        PRE_MIDIAudio->Stop();
+                        PRE_MIDIAudio->m_bPaused = false;
+                        PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed());
+                    }
                     return Success;
                 case 'R':
                     cPlayback.SetSpeed( 1.0, true );
+                    PRE_MIDIAudio->Stop();
+                    PRE_MIDIAudio->m_bPaused = false;
+                    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, 1);
                     return Success;
                 case VK_LEFT:
                     JumpTo(static_cast<long long>(m_llStartTime - cControls.dFwdBackSecs * 1000000));
+                    PRE_MIDIAudio->Stop();
+                    PRE_MIDIAudio->m_bPaused = false;
+                    PRE_MIDIAudio->StartRender(m_llStartTime, false, &m_vEvents, cPlayback.GetSpeed());
                     return Success;
                 case VK_RIGHT:
                     JumpTo(static_cast<long long>(m_llStartTime + cControls.dFwdBackSecs * 1000000));
+                    PRE_MIDIAudio->Stop();
+                    PRE_MIDIAudio->m_bPaused = false;
+                    PRE_MIDIAudio->StartRender(m_llStartTime, false, &m_vEvents, cPlayback.GetSpeed());
                     return Success;
                 case 'M':
                     cPlayback.ToggleMute( true );
+                    SDL_PauseAudio((int)cPlayback.GetMute());
+                    if (!cPlayback.GetMute())
+                    {
+                        PRE_MIDIAudio->StartRender(m_llStartTime, false, &m_vEvents, cPlayback.GetSpeed());
+                    }
                     return Success;
             }
             break;
@@ -925,9 +1039,16 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
             break;
         case TBM_SETPOS:
         {
+
             long long llFirstTime = GetMinTime();
             long long llLastTime = GetMaxTime();
             JumpTo(llFirstTime + ((llLastTime - llFirstTime) * lParam) / 1000, false);
+
+            SDL_PauseAudio(1);
+            PRE_MIDIAudio->Stop();
+            PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
+            PRE_MIDIAudio->StartRender(m_llStartTime, false, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
+            SDL_PauseAudio(0);
             break;
         }
         case WM_LBUTTONDOWN:
@@ -1039,6 +1160,7 @@ GameState::GameError MainScreen::Logic( void )
         m_pRenderer->SetLimitFPS( cVideo.bLimitFPS );
     if ( cVisual.iBkgColor != m_csBackground.iOrigBGR ) m_csBackground.SetColor( cVisual.iBkgColor, 0.7f, 1.3f );
 
+
     double dMaxCorrect = ( mInfo.iMaxVolume > 0 ? 127.0 / mInfo.iMaxVolume : 1.0 );
     double dVolumeCorrect = ( mInfo.iVolumeSum > 0 ? ( m_dVolume * 127.0 * mInfo.iNoteCount ) / mInfo.iVolumeSum : 1.0 );
     dVolumeCorrect = min( dVolumeCorrect, dMaxCorrect );
@@ -1105,12 +1227,12 @@ GameState::GameError MainScreen::Logic( void )
     if ( !m_bPaused )
     {
         // Advance start position updating initial state as we pass stale events
-        // Also PLAYS THE MUSIC
+        // Also (used to) PLAY THE MUSIC
         long long notes_played = 0;
         long long events_processed = 0;
         for (auto& work : m_vThreadWork)
             work.clear();
-        while ( m_iStartPos < iEventCount && m_vEvents[m_iStartPos]->GetAbsMicroSec() <= m_llStartTime )
+        while (m_iStartPos < iEventCount && m_vEvents[m_iStartPos]->GetAbsMicroSec() <= m_llStartTime)
         {
             MIDIChannelEvent *pEvent = m_vEvents[m_iStartPos];
             if (pEvent->GetChannelEventType() != MIDIChannelEvent::NoteOn) {
@@ -1118,11 +1240,11 @@ GameState::GameError MainScreen::Logic( void )
                     pEvent->SetParam1(0);
                 if (pEvent->GetChannelEventType() == MIDIChannelEvent::PitchBend)
                     m_pBends[pEvent->GetChannel()] = (notex_table[1] - notex_table[0]) * (((short)(((pEvent->GetParam2() << 7) | pEvent->GetParam1()) - 8192)) / (8192.0f / 12.0f));
-                m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2());
+                // m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(), pEvent->GetParam2());
             }
             else if (!m_bMute && (!m_bAnyChannelMuted || !m_vTrackSettings[pEvent->GetTrack()].aChannels[pEvent->GetChannel()].bMuted)) {
-                m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(),
-                    static_cast<int>(pEvent->GetParam2() * dVolumeCorrect + 0.5));
+                // m_OutDevice.PlayEvent(pEvent->GetEventCode(), pEvent->GetParam1(),
+                //     static_cast<int>(pEvent->GetParam2() * dVolumeCorrect + 0.5));
                 notes_played++;
             }
             if ((pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn || pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOff)
@@ -2045,7 +2167,7 @@ void MainScreen::RenderText()
     Config& config = Config::GetConfig();
     VizSettings viz = config.GetVizSettings();
 
-    int iLines = 2;
+    int iLines = 3;
     if (m_bShowFPS && !m_bDumpFrames)
         iLines++;
     if (viz.bNerdStats)
@@ -2062,6 +2184,8 @@ void MainScreen::RenderText()
     // Draw the text
     m_pRenderer->BeginText();
 
+    int SkippingVelocity = PRE_MIDIAudio->GetSkippingVelocity();
+    if (SkippingVelocity > 2) iLines++;
     RenderStatus(iLines);
     if (!m_sMarker.empty() && viz.bShowMarkers)
         RenderMarker(m_sMarker.c_str());
@@ -2071,9 +2195,9 @@ void MainScreen::RenderText()
     m_pRenderer->EndText();
 }
 
-void MainScreen::RenderStatusLine(int line, float width, const char* left, const char* format, ...) {
+void MainScreen::RenderStatusLine(int line, float width, const char* left, const char* format, unsigned int color, ...) {
     va_list varargs;
-    va_start(varargs, format);
+    va_start(varargs, color);
 
     float scale = Config::GetConfig().GetVizSettings().fUIScale;
     char buf[1024] = {};
@@ -2082,10 +2206,10 @@ void MainScreen::RenderStatusLine(int line, float width, const char* left, const
     auto draw_list = m_pRenderer->GetDrawList();
     ImVec2 left_pos = ImVec2(m_pRenderer->GetBufferWidth() - width + 6 * scale, (3 + line * 16) * scale);
     ImVec2 right_pos = ImVec2(m_pRenderer->GetBufferWidth() - ImGui::CalcTextSize(buf).x - 6 * scale, (3 + line * 16) * scale);
-    draw_list->AddText(ImVec2(left_pos.x + 2, left_pos.y + 1), 0xFF404040, left);
-    draw_list->AddText(ImVec2(left_pos.x, left_pos.y), 0xFFFFFFFF, left);
-    draw_list->AddText(ImVec2(right_pos.x + 2, right_pos.y + 1), 0xFF404040, buf);
-    draw_list->AddText(ImVec2(right_pos.x, right_pos.y), 0xFFFFFFFF, buf);
+    draw_list->AddText(ImVec2(left_pos.x + 2, left_pos.y + 1), Util::MultiplyRGB(color, 0.25), left);
+    draw_list->AddText(ImVec2(left_pos.x, left_pos.y), color, left);
+    draw_list->AddText(ImVec2(right_pos.x + 2, right_pos.y + 1), Util::MultiplyRGB(color, 0.25), buf);
+    draw_list->AddText(ImVec2(right_pos.x, right_pos.y), color, buf);
 
     va_end(varargs);
 }
@@ -2097,6 +2221,7 @@ void MainScreen::RenderStatus(int lines)
     VizSettings viz = config.GetVizSettings();
     const MIDI::MIDIInfo& mInfo = m_MIDI.GetInfo();
     auto starttime = ((m_llStartTime >= 0) ? m_llStartTime : -m_llStartTime);
+    auto bufferseconds = (long long)(PRE_MIDIAudio->GetBufferSeconds() * 1000000);
 
     auto min = starttime / 60000000;
     auto sec = (starttime % 60000000) / 1000000;
@@ -2106,12 +2231,22 @@ void MainScreen::RenderStatus(int lines)
     auto tcs = (mInfo.llTotalMicroSecs % 1000000) / 100000;
     auto tempo = 60000000.0 / m_iMicroSecsPerBeat;
 
+    auto a_min = bufferseconds / 60000000;
+    auto a_sec = (bufferseconds % 60000000) / 1000000;
+    auto a_cs = (bufferseconds % 1000000) / 100000;
+
     char time_buf[1024] = {};
     snprintf(time_buf, sizeof(time_buf) - 1,
         "%s%lld:%02d.%d / %lld:%02d.%d",
         m_llStartTime >= 0 ? "" : "-",
         min, sec, cs,
         tmin, tsec, tcs);
+
+    char bs_buf[1024] = {};
+    snprintf(bs_buf, sizeof(bs_buf) - 1,
+        "%lld:%02d.%d",
+        a_min, a_sec, a_cs);
+
     float width = max(156 * viz.fUIScale, ImGui::CalcTextSize("Time:").x + ImGui::CalcTextSize(time_buf).x + 24.0f * viz.fUIScale);
     int cur_line = 0;
     m_pRenderer->GetDrawList()->AddRectFilled(
@@ -2121,7 +2256,8 @@ void MainScreen::RenderStatus(int lines)
     );
 
     RenderStatusLine(cur_line++, width, "Time:", time_buf);
-    RenderStatusLine(cur_line++, width, "Tempo:", "%.3lf bpm", tempo);
+
+    RenderStatusLine(cur_line++, width, "Tempo:", "%.3lf bpm", 0xFFFFFFFF, tempo);
 
     // Framerate
     if (m_bShowFPS && !m_bDumpFrames)
@@ -2133,8 +2269,21 @@ void MainScreen::RenderStatus(int lines)
         for (int i = 0; i < m_dNPSNotes.size(); i++)
             nps += std::get<1>(m_dNPSNotes[i]);
 
-        RenderStatusLine(cur_line++, width, "NPS:", "%lld", nps);
-        RenderStatusLine(cur_line++, width, "Rendered:", "%llu", m_pRenderer->GetRenderedNotesCount());
+        RenderStatusLine(cur_line++, width, "NPS:", "%lld", 0xFFFFFFFF, nps);
+        RenderStatusLine(cur_line++, width, "Rendered:", "%llu", 0xFFFFFFFF, m_pRenderer->GetRenderedNotesCount());
+    }
+
+    // Buffer Seconds
+    RenderStatusLine(cur_line++, width, "Buffer Seconds:", bs_buf);
+
+    int SkippingVelocity = PRE_MIDIAudio->GetSkippingVelocity();
+    char skip_vel_buf[64];
+    snprintf(skip_vel_buf, sizeof(skip_vel_buf) - 1,
+        "%i",
+        SkippingVelocity);
+    if (SkippingVelocity > 2)
+    {
+        RenderStatusLine(cur_line++, width, "Skipping Velocity:", skip_vel_buf, 0xFF0000FF);
     }
 }
 

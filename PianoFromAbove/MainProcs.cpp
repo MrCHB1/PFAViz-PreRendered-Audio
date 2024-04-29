@@ -19,9 +19,11 @@
 #include "ConfigProcs.h"
 #include "Globals.h"
 #include "resource.h"
-
 #include "GameState.h"
 #include "Config.h"
+
+#include "MIDIAudio.h"
+#include "MIDIPreRenderPlayer.h"
 
 static WNDPROC g_pPrevBarProc; // Have to override the toolbar proc to make controls transparent
 
@@ -124,6 +126,8 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     cPlayback.SetPlayMode( GameState::Intro, true );
                     cPlayback.SetPlayable( false, true );
                     cPlayback.SetPosition( 0 );
+                    PRE_MIDIAudio->Stop();
+                    SDL_PauseAudio(1);
                     SetWindowText( g_hWnd, L"pfavizkhang-dx12 " __DATE__ );
                     HandOffMsg( WM_COMMAND, ID_CHANGESTATE, ( LPARAM )new IntroScreen( NULL, NULL ) );
                     return 0;
@@ -133,12 +137,15 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 case ID_PLAY_PLAY:
                     if ( cPlayback.GetPlayMode() && iId == ID_PLAY_PLAY )
                         cPlayback.SetPaused( false, true );
+                    PRE_MIDIAudio->m_bPaused = false;
                     return 0;
                 case ID_PLAY_PAUSE:
                     cPlayback.SetPaused( true, true );
+                    PRE_MIDIAudio->m_bPaused = true;
                     return 0;
                 case ID_PLAY_PLAYPAUSE:
                     if ( cPlayback.GetPlayMode() ) cPlayback.TogglePaused( true );
+                    PRE_MIDIAudio->m_bPaused = !PRE_MIDIAudio->m_bPaused;
                     return 0;
                 case ID_PLAY_STOP:
                     if ( cPlayback.GetPlayMode() ) HandOffMsg( msg, wParam, lParam );
@@ -165,9 +172,11 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     cPlayback.SetNSpeed( 1.0, true );
                     return 0;
                 case ID_PLAY_VOLUMEUP:
+                    g_preVolume = min(cPlayback.GetVolume() + 0.1, 1.0);
                     cPlayback.SetVolume( min( cPlayback.GetVolume() + 0.1, 1.0 ), true );
                     return 0;
                 case ID_PLAY_VOLUMEDOWN:
+                    g_preVolume = max(cPlayback.GetVolume() - 0.1, 0.0);
                     cPlayback.SetVolume( max( cPlayback.GetVolume() - 0.1, 0.0 ), true );
                     return 0;
                 case ID_PLAY_MUTE:
@@ -268,6 +277,8 @@ LRESULT WINAPI WndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             HandOffMsg( WM_DEVICECHANGE, 0, 0 );
             break;
         case WM_DESTROY:
+            PRE_MIDIAudio->Stop();
+            SDL_PauseAudio(1);
             PostQuitMessage( 0 );
             return 0;
         case WM_DROPFILES:
@@ -494,6 +505,7 @@ LRESULT WINAPI BarProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                 switch( iId )
                 {
                     case IDC_VOLUME:
+                        g_preVolume = iPos / 100.0;
                         cPlayback.SetVolume( iPos / 100.0, false );
                         return 0;
                     case IDC_SPEED:
@@ -1045,6 +1057,7 @@ VOID SetVolume( DOUBLE dVolume )
 {
     HWND hWndToolbar = GetDlgItem( g_hWndBar, IDC_TOPTOOLBAR );
     HWND hWndVolume = GetDlgItem( hWndToolbar, IDC_VOLUME );
+
     SendMessage( hWndVolume, TBM_SETPOS, TRUE, ( LONG )( 100 * dVolume + .5 ) );
 }
 

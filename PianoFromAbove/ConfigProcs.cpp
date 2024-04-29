@@ -17,8 +17,11 @@
 #include "MainProcs.h"
 #include "Globals.h"
 #include "resource.h"
+#include "MIDIPreRenderPlayer.h";
 
 #include "GameState.h"
+
+#define clamp(n, a, b) min(max(n,a), b)
 
 VOID DoPreferences( HWND hWndOwner )
 {
@@ -84,7 +87,7 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
         case WM_DRAWITEM:
         {
             LPDRAWITEMSTRUCT pdis = (LPDRAWITEMSTRUCT)lParam;
-            if ( ( pdis->CtlID < IDC_COLOR1 || pdis->CtlID > IDC_COLOR6 ) && pdis->CtlID != IDC_BKGCOLOR && pdis->CtlID != IDC_BARCOLOR )
+            if ( ( pdis->CtlID < IDC_COLOR1 || pdis->CtlID > IDC_COLOR16 ) && pdis->CtlID != IDC_BKGCOLOR && pdis->CtlID != IDC_BARCOLOR )
                 return FALSE;
 
             SetDCBrushColor( pdis->hDC, (COLORREF)GetWindowLongPtr( pdis->hwndItem, GWLP_USERDATA ) );
@@ -108,8 +111,10 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     EnableWindow( GetDlgItem( hWnd, IDC_LASTKEY ), FALSE );
                     return TRUE;
                 // Color buttons. Pop up color choose dialog and set color.
-                case IDC_COLOR1: case IDC_COLOR2: case IDC_COLOR3:
-                case IDC_COLOR4: case IDC_COLOR5: case IDC_COLOR6: 
+                case IDC_COLOR1: case IDC_COLOR2: case IDC_COLOR3: case IDC_COLOR4:
+                case IDC_COLOR5: case IDC_COLOR6: case IDC_COLOR7: case IDC_COLOR8:
+                case IDC_COLOR9: case IDC_COLOR10: case IDC_COLOR11: case IDC_COLOR12:
+                case IDC_COLOR13: case IDC_COLOR14: case IDC_COLOR15: case IDC_COLOR16:
                 case IDC_BKGCOLOR:
                 case IDC_BARCOLOR:
                 {
@@ -172,7 +177,7 @@ INT_PTR WINAPI VisualProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     cVisual.bAssociateFiles = ( IsDlgButtonChecked( hWnd, IDC_ASSOCIATEFILES ) == BST_CHECKED );
                     cVisual.iFirstKey = (int)SendMessage( GetDlgItem( hWnd, IDC_FIRSTKEY ), CB_GETCURSEL, 0, 0 ) + MIDI::A0;
                     cVisual.iLastKey = (int)SendMessage( GetDlgItem( hWnd, IDC_LASTKEY ), CB_GETCURSEL, 0, 0 ) + MIDI::A0;
-                    for ( int i = 0; i < IDC_COLOR6 - IDC_COLOR1 + 1; i++ )
+                    for ( int i = 0; i < IDC_COLOR16 - IDC_COLOR1 + 1; i++ )
                         cVisual.colors[i] = (int)GetWindowLongPtr( GetDlgItem( hWnd, IDC_COLOR1 + i ), GWLP_USERDATA );
                     cVisual.iBkgColor = (int)GetWindowLongPtr( GetDlgItem( hWnd, IDC_BKGCOLOR ), GWLP_USERDATA );
                     cViz.iBarColor = (int)GetWindowLongPtr(GetDlgItem(hWnd, IDC_BARCOLOR), GWLP_USERDATA);
@@ -207,7 +212,7 @@ VOID SetVisualProc( HWND hWnd, const VisualSettings &cVisual, const VizSettings&
     SendMessage( hWndLastKey, CB_SETCURSEL, cVisual.iLastKey - MIDI::A0, 0 );
 
     // Colors
-    for ( int i = 0; i < IDC_COLOR6 - IDC_COLOR1 + 1; i++ )
+    for ( int i = 0; i < IDC_COLOR16 - IDC_COLOR1 + 1; i++ )
         SetWindowLongPtr( GetDlgItem( hWnd, IDC_COLOR1 + i ), GWLP_USERDATA, cVisual.colors[i] );
     SetWindowLongPtr( GetDlgItem( hWnd, IDC_BKGCOLOR ), GWLP_USERDATA, cVisual.iBkgColor );
     SetWindowLongPtr( GetDlgItem( hWnd, IDC_BARCOLOR ), GWLP_USERDATA, cViz.iBarColor );
@@ -218,15 +223,73 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
     switch (msg)
     {
         case WM_INITDIALOG:
-            SetAudioProc( hWnd, Config::GetConfig().GetAudioSettings() );
+        {
+            Config& config = Config::GetConfig();
+            const AudioSettings& cAudio = config.GetAudioSettings();
+
+            SetAudioProc(hWnd, Config::GetConfig().GetAudioSettings());
             CheckDlgButton(hWnd, IDC_KDMAPI, Config::GetConfig().GetVizSettings().bKDMAPI);
+            SetDlgItemTextW(hWnd, IDC_PRESF, cAudio.sPreSoundfontPath.c_str());
+
+            HWND hWndVoices = GetDlgItem(hWnd, IDC_PREVOICES);
+            HWND hWndFPS = GetDlgItem(hWnd, IDC_PREAUDFPS);
+
+            HWND hWndLMAttack = GetDlgItem(hWnd, IDC_PRELMATTACK);
+            HWND hWndLMRelease = GetDlgItem(hWnd, IDC_PRELMRELEASE);
+
+            // Edit boxes
+            TCHAR buf[32];
+            _stprintf_s(buf, TEXT("%i"), cAudio.iPreVoices);
+            SetWindowText(hWndVoices, buf);
+            _stprintf_s(buf, TEXT("%f"), cAudio.dPreFPS);
+            SetWindowText(hWndFPS, buf);
+
+            // limiter settings
+            TCHAR attBuf[32];
+            _stprintf_s(attBuf, TEXT("%i"), cAudio.iPreLMAttack);
+            SetWindowText(hWndLMAttack, attBuf);
+
+            TCHAR relBuf[32];
+            _stprintf_s(relBuf, TEXT("%i"), cAudio.iPreLMRelease);
+            SetWindowText(hWndLMRelease, relBuf);
+
             return TRUE;
+        }
         case WM_COMMAND:
         {
             int iId = LOWORD( wParam );
             int iCode = HIWORD( wParam );
-            if (iCode == LBN_SELCHANGE || (iId == IDC_KDMAPI && iCode == BN_CLICKED))
-                Changed( hWnd );
+            //if (iCode == LBN_SELCHANGE || (iId == IDC_KDMAPI && iCode == BN_CLICKED))
+            switch (iId)
+            {
+                case IDC_SFBROWSE:
+                {
+                    OPENFILENAME ofn = { 0 };
+                    TCHAR sFilename[1024] = { 0 };
+                    ofn.lStructSize = sizeof(OPENFILENAME);
+                    ofn.hwndOwner = hWnd;
+                    ofn.lpstrFilter = TEXT("Soundfont Files\0*.sfz;*.sf2\0");
+                    ofn.lpstrFile = sFilename;
+                    ofn.nMaxFile = sizeof(sFilename) / sizeof(TCHAR);
+                    ofn.lpstrTitle = TEXT("Please select a Soundfont");
+                    ofn.Flags = OFN_EXPLORER | OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+                    if (GetOpenFileName(&ofn))
+                        SetDlgItemTextW(hWnd, IDC_PRESF, sFilename);
+                    Changed(hWnd);
+                    return TRUE;
+                }
+                case IDC_SFRESET:
+                {
+                    Changed(hWnd);
+                    SetDlgItemTextW(hWnd, IDC_PRESF, L"");
+                    return TRUE;
+                }
+                case IDC_PREVOICES: case IDC_PREAUDFPS: case IDC_PRELMATTACK: case IDC_PRELMRELEASE: case IDC_PRENOFX:
+                {
+                    Changed(hWnd);
+                    return TRUE;
+                }
+            }
             break;
         }
         case WM_DEVICECHANGE:
@@ -238,6 +301,72 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             LPNMHDR lpnmhdr = ( LPNMHDR )lParam;
             switch (lpnmhdr->code)
             {
+                case UDN_DELTAPOS:
+                {
+                    switch (lpnmhdr->idFrom)
+                    {
+                        case IDC_PREVOICESSPIN:
+                        {
+                            TCHAR buf[32];
+                            LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+                            HWND hWndVoices = GetDlgItem(hWnd, IDC_PREVOICES);
+                            int iOldVal = 0;
+                            int len = GetWindowText(hWndVoices, buf, 32);
+                            if (len > 0 && _stscanf_s(buf, TEXT("%i"), &iOldVal) == 1)
+                            {
+                                int iNewVal = iOldVal - lpnmud->iDelta;
+                                _stprintf_s(buf, TEXT("%i"), iNewVal);
+                                SetWindowText(hWndVoices, buf);
+                            }
+                            return TRUE;
+                        }
+                        case IDC_PREAUDFPSSPIN:
+                        {
+                            TCHAR buf[32];
+                            LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+                            HWND hWndFPS = GetDlgItem(hWnd, IDC_PREAUDFPS);
+                            double dOldVal = 0;
+                            int len = GetWindowText(hWndFPS, buf, 32);
+                            if (len > 0 && _stscanf_s(buf, TEXT("%lf"), &dOldVal) == 1)
+                            {
+                                double dNewVal = dOldVal - lpnmud->iDelta;
+                                _stprintf_s(buf, TEXT("%g"), dNewVal);
+                                SetWindowText(hWndFPS, buf);
+                            }
+                            return TRUE;
+                        }
+                        case IDC_PRELMATTACKSPIN:
+                        {
+                            TCHAR buf[32];
+                            LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+                            HWND hWndAttack  = GetDlgItem(hWnd, IDC_PRELMATTACK);
+                            int iOldVal = 0;
+                            int len = GetWindowText(hWndAttack, buf, 32);
+                            if (len > 0 && _stscanf_s(buf, TEXT("%lf"), &iOldVal) == 1)
+                            {
+                                int iNewVal = iOldVal - lpnmud->iDelta;
+                                _stprintf_s(buf, TEXT("%g"), iNewVal);
+                                SetWindowText(hWndAttack, buf);
+                            }
+                            return TRUE;
+                        }
+                        case IDC_PRELMRELEASESPIN:
+                        {
+                            TCHAR buf[32];
+                            LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+                            HWND hWndRelease = GetDlgItem(hWnd, IDC_PRELMRELEASE);
+                            int iOldVal = 0;
+                            int len = GetWindowText(hWndRelease, buf, 32);
+                            if (len > 0 && _stscanf_s(buf, TEXT("%lf"), &iOldVal) == 1)
+                            {
+                                int iNewVal = iOldVal - lpnmud->iDelta;
+                                _stprintf_s(buf, TEXT("%g"), iNewVal);
+                                SetWindowText(hWndRelease, buf);
+                            }
+                            return TRUE;
+                        }
+                    }
+                }
                 // OK or Apply button pressed
                 case PSN_APPLY:
                 {
@@ -254,6 +383,93 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     // Set the values
                     bool bChanged = (cAudio.iOutDevice != config.GetAudioSettings().iOutDevice) ||
                         (cViz.bKDMAPI != config.GetVizSettings().bKDMAPI);
+
+                    wchar_t soundfont[1024]{};
+                    GetWindowTextW(GetDlgItem(hWnd, IDC_PRESF), soundfont, 1024);
+                    cAudio.sPreSoundfontPath = soundfont;
+
+                    //if (PRE_MIDIAudio != nullptr)
+                    PRE_MIDIAudio->LoadSoundfont(soundfont);
+
+                    // Edit boxes
+                    
+                    // jesus christ man
+                    TCHAR voiceBuf[32];
+                    int voiceEdit = 0;
+                    HWND hwndVoices = GetDlgItem(hWnd, IDC_PREVOICES);
+                    int len = GetWindowText(hwndVoices, voiceBuf, 32);
+                    if (len > 0 && _stscanf_s(voiceBuf, TEXT("%i"), &voiceEdit) == 1)
+                    {
+                        voiceEdit = clamp(voiceEdit, 32, 5000);
+                        PRE_MIDIAudio->m_iDefaultVoices = (int)voiceEdit;
+                        cAudio.iPreVoices = (int)voiceEdit;
+                    }
+                    else
+                    {
+                        MessageBox(hWnd, TEXT("Please specify a numeric value for the number of voices"), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
+                        PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndVoices, TRUE);
+                        SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
+                        return TRUE;
+                    }
+
+                    TCHAR fpsBuf[32];
+                    double fpsEdit = 0.0;
+                    HWND hwndFPS = GetDlgItem(hWnd, IDC_PREAUDFPS);
+                    len = GetWindowText(hwndFPS, fpsBuf, 32);
+                    if (len > 0 && _stscanf_s(fpsBuf, TEXT("%lf"), &fpsEdit) == 1)
+                    {
+                        if (fpsEdit != 0.0) fpsEdit = clamp(fpsEdit, 1, 1000);
+                        PRE_MIDIAudio->m_dFPS = fpsEdit;
+                        cAudio.dPreFPS = fpsEdit;
+                    }
+                    else
+                    {
+                        MessageBox(hWnd, TEXT("Please specify a numeric value for the audio \"FPS\""), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
+                        PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndFPS, TRUE);
+                        SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
+                        return TRUE;
+                    }
+
+                    TCHAR attackBuf[32];
+                    int attackEdit = 0;
+                    HWND hwndLMAttack = GetDlgItem(hWnd, IDC_PRELMATTACK);
+                    len = GetWindowText(hwndLMAttack, attackBuf, 32);
+                    if (len > 0 && _stscanf_s(attackBuf, TEXT("%i"), &attackEdit) == 1)
+                    {
+                        attackEdit = clamp(attackEdit, 0, 1000);
+                        PRE_MIDIAudio->m_dAttack = (double)attackEdit / 1000.0;
+                        cAudio.iPreLMAttack = attackEdit;
+                    }
+                    else
+                    {
+                        MessageBox(hWnd, TEXT("Please specify a numeric value for the limiter attack"), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
+                        PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndLMAttack, TRUE);
+                        SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
+                        return TRUE;
+                    }
+
+                    TCHAR releaseBuf[32];
+                    int releaseEdit = 0;
+                    HWND hwndLMRelease = GetDlgItem(hWnd, IDC_PRELMRELEASE);
+                    len = GetWindowText(hwndLMRelease, releaseBuf, 32);
+                    if (len > 0 && _stscanf_s(releaseBuf, TEXT("%i"), &releaseEdit) == 1)
+                    {
+                        releaseEdit = clamp(releaseEdit, 1, 1000);
+                        PRE_MIDIAudio->m_dRelease = (double)releaseEdit / 1000.0;
+                        cAudio.iPreLMRelease = releaseEdit;
+                    }
+                    else
+                    {
+                        MessageBox(hWnd, TEXT("Please specify a numeric value for the limiter release"), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
+                        PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndLMRelease, TRUE);
+                        SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
+                        return TRUE;
+                    }
+
+                    // disable fx?
+                    cAudio.bNoFX = IsDlgButtonChecked(hWnd, IDC_PRENOFX) == BST_CHECKED;
+                    PRE_MIDIAudio->m_bDefaultNoFx = cAudio.bNoFX;
+
                     config.SetAudioSettings(cAudio);
                     config.SetVizSettings(cViz);
 

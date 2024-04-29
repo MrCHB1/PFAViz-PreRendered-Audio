@@ -62,6 +62,12 @@ struct AudioSettings : public ISettings
     vector< wstring > vMIDIOutDevices;
     int iOutDevice;
     wstring sDesiredOut;
+    std::wstring sPreSoundfontPath;
+    int iPreVoices;
+    double dPreFPS;
+    int iPreLMAttack;
+    int iPreLMRelease;
+    bool bNoFX;
 };
 
 struct VideoSettings : public ISettings

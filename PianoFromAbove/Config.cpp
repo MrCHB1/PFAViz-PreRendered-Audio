@@ -165,6 +165,12 @@ void VisualSettings::LoadDefaultValues()
 void AudioSettings::LoadDefaultValues()
 {
     this->iOutDevice = -1;
+    this->sPreSoundfontPath = L"";
+    this->dPreFPS = 0.0;
+    this->iPreVoices = 1000;
+    this->iPreLMAttack = 10;
+    this->iPreLMRelease = 1000;
+    this->bNoFX = false;
     LoadMIDIDevices();
 }
 
@@ -298,6 +304,20 @@ void AudioSettings::LoadConfigValues( TiXmlElement *txRoot )
             if ( this->vMIDIOutDevices[i] == this->sDesiredOut )
                 this->iOutDevice = (int)i;
     }
+
+    std::string sTempStr;
+    txAudio->QueryStringAttribute("SoundfontPath", &sTempStr);
+    sPreSoundfontPath = Util::StringToWstring(sTempStr);
+    sTempStr = "";
+
+    txAudio->QueryIntAttribute("PreAudVoices", &iPreVoices);
+    txAudio->QueryDoubleAttribute("PreAudFPS", &dPreFPS);
+    txAudio->QueryIntAttribute("PreAudLimiterAttack", &iPreLMAttack);
+    txAudio->QueryIntAttribute("PreAudLimiterRelease", &iPreLMRelease);
+
+    int iAttrVal;
+    if (txAudio->QueryIntAttribute("PreAudNoFX", &iAttrVal) == TIXML_SUCCESS)
+        this->bNoFX = (iAttrVal != 0);
 }
 
 void VideoSettings::LoadConfigValues( TiXmlElement *txRoot )
@@ -447,6 +467,12 @@ bool AudioSettings::SaveConfigValues( TiXmlElement *txRoot )
     if ( this->sDesiredOut.length() > 0 )
         txAudio->SetAttribute( "MIDIOutDevice", Util::WstringToString( this->sDesiredOut ) );
 
+    txAudio->SetAttribute("SoundfontPath", Util::WstringToString(sPreSoundfontPath));
+    txAudio->SetAttribute("PreAudVoices", iPreVoices);
+    txAudio->SetAttribute("PreAudFPS", dPreFPS);
+    txAudio->SetAttribute("PreAudLimiterAttack", iPreLMAttack);
+    txAudio->SetAttribute("PreAudLimiterRelease", iPreLMRelease);
+    txAudio->SetAttribute("PreAudNoFX", bNoFX);
     return true;
 }
 

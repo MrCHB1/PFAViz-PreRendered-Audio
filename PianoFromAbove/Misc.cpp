@@ -256,3 +256,12 @@ void Util::CommaPrintf( TCHAR buf[32], int iVal )
     else if ( iAbsVal < 1000000000 ) _stprintf_s( buf, 32, TEXT( "%d,%03d,%03d" ), iVal / 1000000, ( iAbsVal / 1000 ) % 1000, iAbsVal % 1000 );
     else _stprintf_s( buf, 32, TEXT( "%d,%03d,%03d,%03d" ), iVal / 1000000000, ( iAbsVal / 1000000 ) % 1000, ( iAbsVal / 1000 ) % 1000, iAbsVal % 1000 );
 }
+
+unsigned int Util::MultiplyRGB(unsigned int RGB, double val)
+{
+    int R = (RGB & 0xFF);
+    int G = (RGB >> 8) & 0xFF;
+    int B = (RGB >> 16) & 0xFF;
+    R *= val; G *= val; B *= val;
+    return R | (G << 8) | (B << 16) | (RGB & 0xFF000000);
+}

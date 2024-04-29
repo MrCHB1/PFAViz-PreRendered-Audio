@@ -221,7 +221,7 @@ private:
     void RenderKeys();
     void RenderBorder();
     void RenderText();
-    void RenderStatusLine(int line, float width, const char* left, const char* format, ...);
+    void RenderStatusLine(int line, float width, const char* left, const char* format, unsigned int color = 0xFFFFFFFF, ...);
     void RenderStatus(int lines);
     void RenderMarker(const char* str);
     void RenderMessage( LPRECT prcMsg, TCHAR *sMsg );

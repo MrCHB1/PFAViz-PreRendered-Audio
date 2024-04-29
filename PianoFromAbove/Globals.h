@@ -11,6 +11,7 @@
 
 #include <Windows.h>
 #include "Misc.h"
+#include "MIDIAudio.h"
 
 extern HINSTANCE g_hInstance;
 extern HWND g_hWnd;

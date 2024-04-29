@@ -77,6 +77,7 @@ public:
     static void RGBtoHSV( int R, int G, int B, int &H, int &S, int &V );
     static void HSVtoRGB( int H, int S, int V, int &R, int &G, int &B );
     static void CommaPrintf( TCHAR buf[32], int iVal );
+    static unsigned int MultiplyRGB(unsigned int RGB, double val);
 private:
     static char m_sBuf[16384];
     static wchar_t m_wsBuf[16384];
