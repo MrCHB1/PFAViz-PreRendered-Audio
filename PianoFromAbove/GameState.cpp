@@ -207,9 +207,6 @@ SplashScreen::SplashScreen( HWND hWnd, D3D12Renderer *pRenderer ) : GameState( h
     // Initialize
     //InitNotes( vEvents );
     InitState();
-
-    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents);
-    SDL_PauseAudio(0);
 }
 
 void SplashScreen::InitNotes( const vector< MIDIEvent* > &vEvents )
@@ -346,6 +343,14 @@ GameState::GameError SplashScreen::Logic()
     static Config &config = Config::GetConfig();
     static PlaybackSettings &cPlayback = config.GetPlaybackSettings();
     const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
+    
+    // yo?? actually start prerendered audio???
+    if (!m_bAudioStarted)
+    {
+        PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents);
+        SDL_PauseAudio(0);
+        m_bAudioStarted = true;
+    }
 
     // Detect changes in state
     bool bPaused = cPlayback.GetPaused();
@@ -652,6 +657,8 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, D3D12Rend
     static Config& config = Config::GetConfig();
     static const PlaybackSettings& cPlayback = config.GetPlaybackSettings();
 
+    m_bAudioStarted = false;
+
     SDL_PauseAudio(1);
 
     // Finish off midi processing
@@ -667,14 +674,10 @@ MainScreen::MainScreen( wstring sMIDIFile, State eGameMode, HWND hWnd, D3D12Rend
 
     PRE_MIDIAudio->Stop();
     PRE_MIDIAudio->m_bPaused = false;
-    //PRE_MIDIAudio->Start((double)(m_MIDI.GetInfo().llFirstNote - 3000000) / 1000000.0, m_vEvents, 1.0);
 
     // Initialize
     InitColors();
     InitState();
-
-    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed());
-    SDL_PauseAudio(0);
 
     g_LoadingProgress.stage = MIDILoadingProgress::Stage::Done;
 }
@@ -1122,6 +1125,14 @@ GameState::GameError MainScreen::Logic( void )
     static const VideoSettings &cVideo = config.GetVideoSettings();
     static const VizSettings &cViz = config.GetVizSettings();
     const MIDI::MIDIInfo &mInfo = m_MIDI.GetInfo();
+
+    // Start playing prerendered audio!!!
+    if (!m_bAudioStarted)
+    {
+        PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed());
+        SDL_PauseAudio(0);
+        m_bAudioStarted = true;
+    }
 
     // people are probably going to yell at me if you can't change the bar color during playback
     m_csKBRed.SetColor(cViz.iBarColor, 0.5f);

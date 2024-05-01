@@ -127,6 +127,9 @@ private:
     long long m_llRndStartTime; // Rounded start time to make stuff drop at the same time
 
     float notex_table[128];
+
+    // Prerendered audio state
+    bool m_bAudioStarted = false;
 };
 
 class IntroScreen : public GameState
@@ -308,4 +311,7 @@ private:
 
     // Debug assertion fail workaround
     bool m_bNextMarkerInited = false;
+    
+    // Prerendered audio state
+    bool m_bAudioStarted = false;
 };

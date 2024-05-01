@@ -244,6 +244,10 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             _stprintf_s(buf, TEXT("%f"), cAudio.dPreFPS);
             SetWindowText(hWndFPS, buf);
 
+            // no fx
+            HWND bNoFxCB = GetDlgItem(hWnd, IDC_PRENOFX);
+            SendMessage(bNoFxCB, BM_SETCHECK, (cAudio.bNoFX) ? BST_CHECKED : BST_UNCHECKED, 0);
+
             // limiter settings
             TCHAR attBuf[32];
             _stprintf_s(attBuf, TEXT("%i"), cAudio.iPreLMAttack);
