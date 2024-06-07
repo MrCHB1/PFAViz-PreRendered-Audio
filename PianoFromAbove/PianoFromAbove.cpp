@@ -15,6 +15,7 @@
 #include <winhttp.h>
 #include <regex>
 #include <clocale>
+#include <dwmapi.h>
 
 #include "MainProcs.h"
 #include "resource.h"
@@ -31,6 +32,10 @@
 #include <Audioclient.h>
 
 #include "sdl2/SDL.h"
+
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
 
 // Yes, I know you shouldn't store build numbers as doubles
 constexpr double BUILD_VERSION = 20240112;
@@ -194,6 +199,20 @@ INT WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdL
     // Create the application window
     g_hWnd = CreateWindowEx( 0, CLASSNAME, L"pfavizkhang-dx12 " __DATE__, WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, cView.GetMainLeft(), cView.GetMainTop(),
                              cView.GetMainWidth(), cView.GetMainHeight(), NULL, NULL, wc.hInstance, NULL );
+    
+    BOOL darkMode = TRUE;
+    ::DwmSetWindowAttribute(g_hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &darkMode, sizeof(darkMode));
+    //SetClassLongPtr(g_hWnd, GCLP_HBRBACKGROUND, (LONG_PTR)CreateSolidBrush(RGB(0, 0, 0)));
+
+    /*HBRUSH bgBrush = CreateSolidBrush(RGB(0, 0, 0));
+    MENUINFO mi = { 0 };
+    mi.cbSize = sizeof(mi);
+    mi.fMask = MIM_BACKGROUND | MIM_APPLYTOSUBMENUS;
+    mi.hbrBack = bgBrush;
+
+    HMENU menu = ::GetMenu(g_hWnd);
+    SetMenuInfo(menu, &mi);*/
+
     if ( !g_hWnd ) return 1;
 
     // Accept drag and drop

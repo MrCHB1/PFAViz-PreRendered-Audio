@@ -12,6 +12,7 @@
 #include <tchar.h>
 #include <ppl.h>
 #include <dwmapi.h>
+#include <locale>
 
 #include "Globals.h"
 #include "GameState.h"
@@ -2182,7 +2183,7 @@ void MainScreen::RenderText()
     if (m_bShowFPS && !m_bDumpFrames)
         iLines++;
     if (viz.bNerdStats)
-        iLines += 2;
+        iLines += 3;
     if (m_Timer.m_bManualTimer && !m_bDumpFrames)
         iLines++;
 
@@ -2272,7 +2273,7 @@ void MainScreen::RenderStatus(int lines)
 
     // Framerate
     if (m_bShowFPS && !m_bDumpFrames)
-        RenderStatusLine(cur_line++, width, "FPS:", "%.1lf", m_dFPS);
+        RenderStatusLine(cur_line++, width, "FPS:", "%.1lf", 0xFFFFFFFF, m_dFPS);
 
     // Nerd stats
     if (viz.bNerdStats) {
@@ -2282,6 +2283,7 @@ void MainScreen::RenderStatus(int lines)
 
         RenderStatusLine(cur_line++, width, "NPS:", "%lld", 0xFFFFFFFF, nps);
         RenderStatusLine(cur_line++, width, "Rendered:", "%llu", 0xFFFFFFFF, m_pRenderer->GetRenderedNotesCount());
+        RenderStatusLine(cur_line++, width, "Note Count:", "%llu", 0xFFFFFFFF, mInfo.iNoteCount);
     }
 
     // Buffer Seconds

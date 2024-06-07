@@ -251,6 +251,10 @@ void MIDIAudio::GeneratorFunc(double speed, double time, std::vector<MIDIChannel
 
 		// skipping velocity
 		if (((*e)->GetEventCode() >> 4) == 0x9 && (*e)->GetParam2() < GetSkippingVelocity()) continue;
+		//if (((*e)->GetEventCode() >> 4) != 0x9 && ((*e)->GetEventCode() >> 4) != 0x8) continue;
+
+		// skip notes with velocity lower than this value
+		// if (((*e)->GetEventCode() >> 4) == 0x9 && (*e)->GetParam2() < 15) continue;
 
 		BYTE ev[3] = { (*e)->GetEventCode(), (*e)->GetParam1(), (*e)->GetParam2()};
 

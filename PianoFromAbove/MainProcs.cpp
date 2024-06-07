@@ -25,6 +25,33 @@
 #include "MIDIAudio.h"
 #include "MIDIPreRenderPlayer.h"
 
+BOOL IsDarkMode()
+{
+    DWORD value;
+    DWORD size = sizeof(value);
+    HKEY hKey;
+    if (RegOpenKeyEx(HKEY_CURRENT_USER, LR"(Software\Microsoft\Windows\CurrentVersion\Themes\Personalize)", 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+    {
+        if (RegQueryValueEx(hKey, L"AppsUseLightTheme", nullptr, nullptr, reinterpret_cast<LPBYTE>(&value), &size) == ERROR_SUCCESS)
+        {
+            RegCloseKey(hKey);
+            return value == 0; // 0 means dark mode
+        }
+        RegCloseKey(hKey);
+    }
+    return false; // Default to light mode if registry key is not found
+}
+
+void SetWindowDarkMode(HWND hwnd)
+{
+    if (IsDarkMode())
+        SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)CreateSolidBrush(RGB(45, 45, 48)));
+    else
+        SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)CreateSolidBrush(RGB(255, 255, 255)));
+
+    InvalidateRect(hwnd, nullptr, true);
+}
+
 static WNDPROC g_pPrevBarProc; // Have to override the toolbar proc to make controls transparent
 
 VOID SizeWindows(int iMainWidth, int iMainHeight);
@@ -490,6 +517,8 @@ LRESULT WINAPI BarProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
     static PlaybackSettings &cPlayback = Config::GetConfig().GetPlaybackSettings();
 
+    static HBRUSH bgBrush = NULL;
+
     switch( msg )
     {
         // WM_HSCROLL doesn't percolate up, so got to handle it here
@@ -524,7 +553,14 @@ LRESULT WINAPI BarProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
         case WM_CTLCOLORSTATIC:
         {
             HDC hDC = ( HDC )wParam;
-            SetBkMode( hDC, TRANSPARENT );
+            /*if (IsDarkMode())
+            {
+                SetBkColor(hDC, RGB(0, 0, 0));
+                SetTextColor(hDC, RGB(255, 255, 255));
+            }
+            else*/
+                SetBkMode(hDC, TRANSPARENT);
+
             return ( INT_PTR )GetStockObject( NULL_BRUSH );
         }
         // This is for slider controls. Draw our own channel
