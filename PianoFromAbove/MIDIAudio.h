@@ -43,6 +43,9 @@ public:
 	double m_dAttack = 1.0;
 	double m_dRelease = 0.005;
 
+	int m_iVelThreshLow = 0;
+	int m_iVelThreshUpp = 127;
+
 	double m_dBufferSeconds = max(0, m_iBufferWritePos - m_iBufferReadPos) / 48000.0;
 	double m_dPlayerTime = m_dStartTime + (double)m_iBufferReadPos / 48000.0;
 

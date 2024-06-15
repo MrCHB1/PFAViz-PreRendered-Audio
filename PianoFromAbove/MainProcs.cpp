@@ -1050,6 +1050,7 @@ VOID SetFullScreen( BOOL bFullScreen )
     }
     else
     {
+
         SetMenu( g_hWnd, hMenu );
         if ( cView.GetControls() ) ShowWindow( g_hWndBar, SW_SHOWNA );
         SetWindowLongPtr( g_hWnd, GWL_STYLE, GetWindowLongPtr( g_hWnd, GWL_STYLE ) | WS_CAPTION | WS_THICKFRAME );

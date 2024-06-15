@@ -139,6 +139,7 @@
 #define IDC_DISABLEUI                   1113
 #define IDC_PREVOICES                   1113
 #define IDC_PREVOICESSPIN               1114
+#define IDC_STATS2                      1114
 #define IDC_BACKGROUNDRESET2            1115
 #define IDC_PRELMATTACK                 1115
 #define IDC_FONTRESET                   1116
@@ -147,10 +148,15 @@
 #define IDC_KDMAPI2                     1117
 #define IDC_PRENOFX                     1117
 #define IDC_MFCVSLISTBOX1               1118
+#define IDC_PREVELTHRESHLOW             1118
 #define IDC_SOUNDFONTPATH               1119
+#define IDC_PREVELTHRESHLOWSPIN         1119
 #define IDC_PRELMRELEASE                1120
 #define IDC_PREVOICESSPIN3              1120
 #define IDC_PRELMRELEASESPIN            1121
+#define IDC_PREVELTHRESHUP              1122
+#define IDC_PREVOICESSPIN4              1123
+#define IDC_PREVELTHRESHUPSPIN          1123
 #define ID_FILE_PLAYFILE                40001
 #define ID_FILE_ADDFILE                 40002
 #define ID_FILE_ADDFOLDER               40003

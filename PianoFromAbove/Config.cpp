@@ -171,6 +171,8 @@ void AudioSettings::LoadDefaultValues()
     this->iPreLMAttack = 10;
     this->iPreLMRelease = 1000;
     this->bNoFX = false;
+    this->iPreVelThreshLow = 0;
+    this->iPreVelThreshUpp = 127;
     LoadMIDIDevices();
 }
 
@@ -220,6 +222,7 @@ void VizSettings::LoadDefaultValues() {
     this->bShowMarkers = true;
     this->eMarkerEncoding = MarkerEncoding::CP1252;
     this->bNerdStats = false;
+    this->bExtraStats = false;
     this->sSplashMIDI = L"";
     this->bVisualizePitchBends = false;
     this->bDumpFrames = false;
@@ -318,6 +321,9 @@ void AudioSettings::LoadConfigValues( TiXmlElement *txRoot )
     int iAttrVal;
     if (txAudio->QueryIntAttribute("PreAudNoFX", &iAttrVal) == TIXML_SUCCESS)
         this->bNoFX = (iAttrVal != 0);
+
+    txAudio->QueryIntAttribute("PreAudVelThreshLow", &iPreVelThreshLow);
+    txAudio->QueryIntAttribute("PReAudVelThreshUpp", &iPreVelThreshUpp);
 }
 
 void VideoSettings::LoadConfigValues( TiXmlElement *txRoot )
@@ -391,6 +397,8 @@ void VizSettings::LoadConfigValues(TiXmlElement* txRoot) {
         bShowMarkers = (iAttrVal != 0);
     if (txViz->QueryIntAttribute("NerdStats", &iAttrVal) == TIXML_SUCCESS)
         bNerdStats = (iAttrVal != 0);
+    if (txViz->QueryIntAttribute("ExtraStats", &iAttrVal) == TIXML_SUCCESS)
+        bExtraStats = (iAttrVal != 0);
     if (txViz->QueryIntAttribute("VisualizePitchBends", &iAttrVal) == TIXML_SUCCESS)
         bVisualizePitchBends = (iAttrVal != 0);
     if (txViz->QueryIntAttribute("DumpFrames", &iAttrVal) == TIXML_SUCCESS)
@@ -473,6 +481,8 @@ bool AudioSettings::SaveConfigValues( TiXmlElement *txRoot )
     txAudio->SetAttribute("PreAudLimiterAttack", iPreLMAttack);
     txAudio->SetAttribute("PreAudLimiterRelease", iPreLMRelease);
     txAudio->SetAttribute("PreAudNoFX", bNoFX);
+    txAudio->SetAttribute("PreAudVelThreshLow", iPreVelThreshLow);
+    txAudio->SetAttribute("PreAudVelThreshUpp", iPreVelThreshUpp);
     return true;
 }
 
@@ -531,6 +541,7 @@ bool VizSettings::SaveConfigValues(TiXmlElement* txRoot) {
     txViz->SetAttribute("ShowMarkers", bShowMarkers);
     txViz->SetAttribute("MarkerEncoding", eMarkerEncoding);
     txViz->SetAttribute("NerdStats", bNerdStats);
+    txViz->SetAttribute("ExtraStats", bExtraStats);
     txViz->SetAttribute("SplashMIDI", Util::WstringToString(sSplashMIDI));
     txViz->SetAttribute("VisualizePitchBends", bVisualizePitchBends);
     txViz->SetAttribute("DumpFrames", bDumpFrames);

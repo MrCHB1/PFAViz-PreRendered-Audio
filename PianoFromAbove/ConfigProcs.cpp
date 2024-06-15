@@ -237,6 +237,9 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             HWND hWndLMAttack = GetDlgItem(hWnd, IDC_PRELMATTACK);
             HWND hWndLMRelease = GetDlgItem(hWnd, IDC_PRELMRELEASE);
 
+            HWND hWndVTLower = GetDlgItem(hWnd, IDC_PREVELTHRESHLOW);
+            HWND hWndVTUpper = GetDlgItem(hWnd, IDC_PREVELTHRESHUP);
+
             // Edit boxes
             TCHAR buf[32];
             _stprintf_s(buf, TEXT("%i"), cAudio.iPreVoices);
@@ -256,6 +259,15 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             TCHAR relBuf[32];
             _stprintf_s(relBuf, TEXT("%i"), cAudio.iPreLMRelease);
             SetWindowText(hWndLMRelease, relBuf);
+
+            // velocity threshold settings
+            TCHAR vtLowBuf[32];
+            _stprintf_s(vtLowBuf, TEXT("%i"), cAudio.iPreVelThreshLow);
+            SetWindowText(hWndVTLower, vtLowBuf);
+
+            TCHAR vtUppBuf[32];
+            _stprintf_s(vtUppBuf, TEXT("%i"), cAudio.iPreVelThreshUpp);
+            SetWindowText(hWndVTUpper, vtUppBuf);
 
             return TRUE;
         }
@@ -288,7 +300,10 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     SetDlgItemTextW(hWnd, IDC_PRESF, L"");
                     return TRUE;
                 }
-                case IDC_PREVOICES: case IDC_PREAUDFPS: case IDC_PRELMATTACK: case IDC_PRELMRELEASE: case IDC_PRENOFX:
+                case IDC_PREVOICES: case IDC_PREAUDFPS:
+                case IDC_PRELMATTACK: case IDC_PRELMRELEASE:
+                case IDC_PRENOFX:
+                case IDC_PREVELTHRESHLOW: case IDC_PREVELTHRESHUP:
                 {
                     Changed(hWnd);
                     return TRUE;
@@ -369,6 +384,36 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                             }
                             return TRUE;
                         }
+                        case IDC_PREVELTHRESHLOWSPIN:
+                        {
+                            TCHAR buf[32];
+                            LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+                            HWND hwndVTLow = GetDlgItem(hWnd, IDC_PREVELTHRESHLOW);
+                            int iOldVal = 0;
+                            int len = GetWindowText(hwndVTLow, buf, 32);
+                            if (len > 0 && _stscanf_s(buf, TEXT("%i"), &iOldVal) == 1)
+                            {
+                                int iNewVal = iOldVal - lpnmud->iDelta;
+                                _stprintf_s(buf, TEXT("%i"), iNewVal);
+                                SetWindowText(hwndVTLow, buf);
+                            }
+                            return TRUE;
+                        }
+                        case IDC_PREVELTHRESHUPSPIN:
+                        {
+                            TCHAR buf[32];
+                            LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+                            HWND hwndVTUpp = GetDlgItem(hWnd, IDC_PREVELTHRESHUP);
+                            int iOldVal = 0;
+                            int len = GetWindowText(hwndVTUpp, buf, 32);
+                            if (len > 0 && _stscanf_s(buf, TEXT("%i"), &iOldVal) == 1)
+                            {
+                                int iNewVal = iOldVal - lpnmud->iDelta;
+                                _stprintf_s(buf, TEXT("%i"), iNewVal);
+                                SetWindowText(hwndVTUpp, buf);
+                            }
+                            return TRUE;
+                        }
                     }
                 }
                 // OK or Apply button pressed
@@ -397,7 +442,7 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
                     // Edit boxes
                     
-                    // jesus christ man
+                    // jesus christ man :c
                     TCHAR voiceBuf[32];
                     int voiceEdit = 0;
                     HWND hwndVoices = GetDlgItem(hWnd, IDC_PREVOICES);
@@ -466,6 +511,44 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     {
                         MessageBox(hWnd, TEXT("Please specify a numeric value for the limiter release"), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
                         PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndLMRelease, TRUE);
+                        SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
+                        return TRUE;
+                    }
+
+                    // velocity threshold spin boxes
+
+                    TCHAR velThreshLowBuf[32];
+                    int velThreshLowEdit = 0;
+                    HWND hwndVTLow = GetDlgItem(hWnd, IDC_PREVELTHRESHLOW);
+                    len = GetWindowText(hwndVTLow, velThreshLowBuf, 32);
+                    if (len > 0 && _stscanf_s(velThreshLowBuf, TEXT("%i"), &velThreshLowEdit) == 1)
+                    {
+                        velThreshLowEdit = clamp(velThreshLowEdit, 0, 126);
+                        PRE_MIDIAudio->m_iVelThreshLow = velThreshLowEdit;
+                        cAudio.iPreVelThreshLow = velThreshLowEdit;
+                    }
+                    else
+                    {
+                        MessageBox(hWnd, TEXT("Please specify a numeric value for the lower velocity threshold"), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
+                        PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndVTLow, TRUE);
+                        SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
+                        return TRUE;
+                    }
+
+                    TCHAR velThreshUppBuf[32];
+                    int velThreshUppEdit = 0;
+                    HWND hwndVTUpp = GetDlgItem(hWnd, IDC_PREVELTHRESHUP);
+                    len = GetWindowText(hwndVTUpp, velThreshUppBuf, 32);
+                    if (len > 0 && _stscanf_s(velThreshUppBuf, TEXT("%i"), &velThreshUppEdit) == 1)
+                    {
+                        velThreshUppEdit = clamp(velThreshUppEdit, 1, 127);
+                        PRE_MIDIAudio->m_iVelThreshUpp = velThreshUppEdit;
+                        cAudio.iPreVelThreshUpp = velThreshUppEdit;
+                    }
+                    else
+                    {
+                        MessageBox(hWnd, TEXT("Please specify a numeric value for the upper velocity threshold"), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
+                        PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndVTUpp, TRUE);
                         SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
                         return TRUE;
                     }
@@ -671,6 +754,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         CheckDlgButton(hWnd, IDC_TICKBASED, viz.bTickBased);
         CheckDlgButton(hWnd, IDC_MARKERS, viz.bShowMarkers);
         CheckDlgButton(hWnd, IDC_STATS, viz.bNerdStats);
+        CheckDlgButton(hWnd, IDC_STATS2, viz.bExtraStats);
         CheckDlgButton(hWnd, IDC_PITCHBENDS, viz.bVisualizePitchBends);
         CheckDlgButton(hWnd, IDC_FFMPEG, viz.bDumpFrames);
         CheckDlgButton(hWnd, IDC_COLORLOOP, viz.bColorLoop);
@@ -768,6 +852,7 @@ INT_PTR WINAPI VizProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             viz.bShowMarkers = IsDlgButtonChecked(hWnd, IDC_MARKERS);
             viz.eMarkerEncoding = (VizSettings::MarkerEncoding)SendMessage(GetDlgItem(hWnd, IDC_MARKERENC), CB_GETCURSEL, 0, 0);
             viz.bNerdStats = IsDlgButtonChecked(hWnd, IDC_STATS);
+            viz.bExtraStats = IsDlgButtonChecked(hWnd, IDC_STATS2);
             GetWindowTextW(GetDlgItem(hWnd, IDC_SPLASHMIDI), splash, 1024);
             viz.sSplashMIDI = splash;
             GetWindowTextW(GetDlgItem(hWnd, IDC_BACKGROUND), background, 1024);

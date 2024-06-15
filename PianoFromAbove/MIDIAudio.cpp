@@ -254,9 +254,10 @@ void MIDIAudio::GeneratorFunc(double speed, double time, std::vector<MIDIChannel
 		//if (((*e)->GetEventCode() >> 4) != 0x9 && ((*e)->GetEventCode() >> 4) != 0x8) continue;
 
 		// skip notes with velocity lower than this value
-		// if (((*e)->GetEventCode() >> 4) == 0x9 && (*e)->GetParam2() < 15) continue;
+		if (((*e)->GetEventCode() >> 4) == 0x9 && \
+			((*e)->GetParam2() <= m_iVelThreshLow || (*e)->GetParam2() > m_iVelThreshUpp)) continue;
 
-		BYTE ev[3] = { (*e)->GetEventCode(), (*e)->GetParam1(), (*e)->GetParam2()};
+		BYTE ev[3] = { (*e)->GetEventCode(), (*e)->GetParam1(), (*e)->GetParam2() };
 
 		int err = 1;
 		err = bass->SendEventRaw(ev, 0);

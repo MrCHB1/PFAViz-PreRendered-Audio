@@ -68,6 +68,9 @@ struct AudioSettings : public ISettings
     int iPreLMAttack;
     int iPreLMRelease;
     bool bNoFX;
+
+    int iPreVelThreshLow;
+    int iPreVelThreshUpp;
 };
 
 struct VideoSettings : public ISettings
@@ -180,6 +183,7 @@ struct VizSettings : public ISettings {
     bool bShowMarkers;
     enum MarkerEncoding { CP1252, CP932, UTF8 } eMarkerEncoding;
     bool bNerdStats;
+    bool bExtraStats;
     std::wstring sSplashMIDI;
     bool bVisualizePitchBends;
     bool bDumpFrames;

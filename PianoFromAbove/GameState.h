@@ -255,6 +255,8 @@ private:
     State m_eGameMode;
     long long m_iStartPos, m_iEndPos; // Postions of the start and end events that occur in the current window
     long long m_llStartTime, m_llTimeSpan;  // Times of the start and end events of the current window
+    long long m_llPolyphony; // How many notes are playing at the same time.
+    long long m_llNotesPlayed;
     int m_iStartTick; // Tick that corresponds with m_llStartTime. Used to help with beat and metronome detection
     vector<int> m_vState[128];  // The notes that are on at time m_llStartTime.
     vector<thread_work_t> m_vThreadWork[128];
