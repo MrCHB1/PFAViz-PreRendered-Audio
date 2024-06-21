@@ -107,7 +107,7 @@ private:
     int m_iStartPos;
     int m_iEndPos;
     long long m_llStartTime;
-    vector<int> m_vState[128];  // The notes that are on at time m_llStartTime.
+    vector<int> m_vState[256];  // The notes that are on at time m_llStartTime.
     Timer m_Timer; // Frame timers
     double m_dVolume;
     bool m_bPaused;
@@ -126,7 +126,7 @@ private:
     float m_fWhiteCX; // Width of the white keys
     long long m_llRndStartTime; // Rounded start time to make stuff drop at the same time
 
-    float notex_table[128];
+    float notex_table[256];
 
     // Prerendered audio state
     bool m_bAudioStarted = false;
@@ -258,9 +258,9 @@ private:
     long long m_llPolyphony; // How many notes are playing at the same time.
     long long m_llNotesPlayed;
     int m_iStartTick; // Tick that corresponds with m_llStartTime. Used to help with beat and metronome detection
-    vector<int> m_vState[128];  // The notes that are on at time m_llStartTime.
-    vector<thread_work_t> m_vThreadWork[128];
-    int m_pNoteState[128]; // The last note that was turned on
+    vector<int> m_vState[256];  // The notes that are on at time m_llStartTime.
+    vector<thread_work_t> m_vThreadWork[256];
+    int m_pNoteState[256]; // The last note that was turned on
     double m_dSpeed; // Speed multiplier
     bool m_bPaused; // Paused state
     Timer m_Timer; // Frame timers
@@ -297,7 +297,7 @@ private:
     bool m_bZoomMove, m_bTrackPos, m_bTrackZoom;
     POINT m_ptStartZoom, m_ptLastPos;
 
-    float notex_table[128];
+    float notex_table[256];
 
     // Computed in RenderGlobal
     int m_iStartNote, m_iEndNote; // Start and end notes of the songs

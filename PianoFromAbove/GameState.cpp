@@ -415,7 +415,7 @@ GameState::GameError SplashScreen::Logic()
 
     // Update fixed size constants
     auto& fixed_consts = m_pRenderer->GetFixedSizeConstants();
-    memcpy(&fixed_consts.note_x, &notex_table, sizeof(float) * 128);
+    memcpy(&fixed_consts.note_x, &notex_table, sizeof(float) * 256);
     memset(&fixed_consts.bends, 0, sizeof(float) * 16);
 
     // Update track colors
@@ -581,7 +581,7 @@ void SplashScreen::RenderNotes()
             RenderNote(pEvent);
         }
     }
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 256; i++) {
         if (MIDI::IsSharp(i)) {
             for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
                 RenderNote(m_vEvents[*it]);
@@ -599,7 +599,7 @@ void SplashScreen::RenderNotes()
             }
         }
     }
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 256; i++) {
         if (!MIDI::IsSharp(i)) {
             for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
                 RenderNote(m_vEvents[*it]);
@@ -629,8 +629,8 @@ void SplashScreen::RenderNote(MIDIChannelEvent* pNote)
 }
 
 void SplashScreen::GenNoteXTable() {
-    int min_key = min(max(0, m_iStartNote), 127);
-    int max_key = min(max(0, m_iEndNote), 127);
+    int min_key = min(max(0, m_iStartNote), 255);
+    int max_key = min(max(0, m_iEndNote), 255);
     for (int i = min_key; i <= max_key; i++) {
         int iWhiteKeys = MIDI::WhiteCount(m_iStartNote, i);
         float fStartX = (MIDI::IsSharp(m_iStartNote) - MIDI::IsSharp(i)) * SharpRatio / 2.0f;
@@ -1272,7 +1272,7 @@ GameState::GameError MainScreen::Logic( void )
                 notes_played++;
             }
             if ((pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOn || pEvent->GetChannelEventType() == MIDIChannelEvent::NoteOff)
-                && pEvent->GetParam1() < 128 && pEvent->HasSister())
+                && pEvent->GetParam1() < 256 && pEvent->HasSister())
             {
                 m_vThreadWork[pEvent->GetParam1()].push_back({
                     .idx = (unsigned)m_iStartPos,
@@ -1285,13 +1285,13 @@ GameState::GameError MainScreen::Logic( void )
 
         // Only parallelize after an events threshold is hit for this frame
         if (events_processed < 131072) {
-            for (int i = 0; i < 128; i++) {
+            for (int i = 0; i < 256; i++) {
                 for (const auto& work : m_vThreadWork[i])
                     UpdateState(i, work);
             }
         }
         else {
-            concurrency::parallel_for(size_t(0), size_t(128), [&](int key) {
+            concurrency::parallel_for(size_t(0), size_t(256), [&](int key) {
                 for (const auto& work : m_vThreadWork[key])
                     UpdateState(key, work);
             });
@@ -1314,7 +1314,7 @@ GameState::GameError MainScreen::Logic( void )
         // i *hope* it's fast
         m_llPolyphony = 0;
 
-        for (size_t key = 0; key < 128; key++)
+        for (size_t key = 0; key < 256; key++)
         {
             for (auto elem : m_vState[key])
                 if (elem != -1) m_llPolyphony++;
@@ -1350,7 +1350,7 @@ GameState::GameError MainScreen::Logic( void )
 
     // Update fixed size constants
     auto& fixed_consts = m_pRenderer->GetFixedSizeConstants();
-    memcpy(&fixed_consts.note_x, &notex_table, sizeof(float) * 128);
+    memcpy(&fixed_consts.note_x, &notex_table, sizeof(float) * 256);
     if (cViz.bVisualizePitchBends)
         memcpy(&fixed_consts.bends, &m_pBends, sizeof(float) * 16);
     else
@@ -1489,7 +1489,7 @@ void MainScreen::PlaySkippedEvents(eventvec_t::const_iterator itOldProgramChange
         return;
 
     // Lookup tables to see if we've got an event for a given control or program. faster than map or hash_map.
-    bool aControl[16][128], aProgram[16], aPitchBend[16];
+    bool aControl[16][256], aProgram[16], aPitchBend[16];
     bool bPianoOverride = Config::GetConfig().m_bPianoOverride;
     memset(aControl, 0, sizeof(aControl));
     memset(aProgram, 0, sizeof(aProgram));
@@ -1948,7 +1948,7 @@ void MainScreen::RenderNotes()
         }
     }
 
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 256; i++) {
         for (vector< int >::reverse_iterator it = (m_vState[i]).rbegin(); it != (m_vState[i]).rend(); it++) {
             RenderNote(m_vEvents[*it], visualize_bends);
         }
@@ -1980,8 +1980,8 @@ void MainScreen::RenderNote(const MIDIChannelEvent* pNote, bool bVisualizeBends)
 }
 
 void MainScreen::GenNoteXTable() {
-    int min_key = min(max(0, m_iStartNote), 127);
-    int max_key = min(max(0, m_iEndNote), 127);
+    int min_key = min(max(0, m_iStartNote), 255);
+    int max_key = min(max(0, m_iEndNote), 255);
     for (int i = min_key; i <= max_key; i++) {
         int iWhiteKeys = MIDI::WhiteCount(m_iStartNote, i);
         float fStartX = (MIDI::IsSharp(m_iStartNote) - MIDI::IsSharp(i)) * SharpRatio / 2.0f;
@@ -2092,7 +2092,7 @@ void MainScreen::RenderKeys()
 
     // Draw the sharps
     iStartRender = ( m_iStartNote != MIDI::A0 && !MIDI::IsSharp( m_iStartNote ) && m_iStartNote > 0 && MIDI::IsSharp( m_iStartNote - 1 ) ? m_iStartNote - 1 : m_iStartNote );
-    iEndRender = ( m_iEndNote != MIDI::C8 && !MIDI::IsSharp( m_iEndNote ) && m_iEndNote < 127 && MIDI::IsSharp( m_iEndNote + 1 ) ? m_iEndNote + 1 : m_iEndNote );
+    iEndRender = ( ( m_iEndNote != MIDI::C8 && m_iEndNote != MIDI::G10 ) && !MIDI::IsSharp( m_iEndNote ) && m_iEndNote < 255 && MIDI::IsSharp( m_iEndNote + 1 ) ? m_iEndNote + 1 : m_iEndNote );
     fStartX = ( MIDI::IsSharp( m_iStartNote ) ? m_fWhiteCX * SharpRatio / 2.0f : 0.0f );
 
     float fSharpTop = SharpRatio * 0.7f;

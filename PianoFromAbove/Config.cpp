@@ -65,7 +65,7 @@ void Config::LoadConfigValues()
     if ( sPath.length() == 0 ) return;
 
     // Load it
-    TiXmlDocument doc( sPath + "\\Config.xml" );
+    TiXmlDocument doc( sPath + "\\ConfigPreRender.xml" );
     if ( !doc.LoadFile() ) return;
 
     // Get the root element
@@ -75,7 +75,7 @@ void Config::LoadConfigValues()
     LoadConfigValues( txRoot );
 
     // Custom settings need to be loaded from a separate file, otherwise stock PFA will reset them
-    doc = TiXmlDocument(sPath + "\\pfavizkhang.xml");
+    doc = TiXmlDocument(sPath + "\\pfavizponluxime.xml");
     if (!doc.LoadFile())
         return;
 
@@ -113,7 +113,7 @@ bool Config::SaveConfigValues()
     SaveConfigValues( txRoot );
 
     // Write it!
-    bool bStockRet = doc.SaveFile( sPath + "\\Config.xml" );
+    bool bStockRet = doc.SaveFile( sPath + "\\ConfigPreRender.xml" );
 
     // Same as in LoadConfigValues
     doc = TiXmlDocument();
@@ -124,7 +124,7 @@ bool Config::SaveConfigValues()
 
     m_VizSettings.SaveConfigValues(txRoot);
 
-    return bStockRet && doc.SaveFile(sPath + "\\pfavizkhang.xml");
+    return bStockRet && doc.SaveFile(sPath + "\\pfavizponluxime.xml");
 }
 
 bool Config::SaveConfigValues( TiXmlElement *txRoot )

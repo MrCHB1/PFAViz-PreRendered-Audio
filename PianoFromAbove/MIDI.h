@@ -72,8 +72,9 @@ class MIDI
 public:
     enum Note { A, AS, B, C, CS, D, DS, E, F, FS, G, GS };
 
-    static const int KEYS = 129; // One extra because 128th is a sharp
+    static const int KEYS = 257; // One extra because 128th is a sharp
     static const int C8 = 108;
+    static const int G10 = 127;
     static const int C4 = C8 - 4 * 12;
     static const int A0 = C8 - 7 * 12 - 3;
     static const int Drums = 0x09;
