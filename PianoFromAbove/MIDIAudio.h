@@ -37,6 +37,7 @@ public:
 	double m_dSimulatedLagScale = 0.01;
 	double m_dStartTime = 0;
 	double m_dFPS = 0.0;
+	double m_dInstability = 1.0;
 	int m_iSkippingVelocity;
 	float* m_fAudioBuffer;
 

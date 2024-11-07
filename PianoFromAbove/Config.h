@@ -65,6 +65,7 @@ struct AudioSettings : public ISettings
     std::wstring sPreSoundfontPath;
     int iPreVoices;
     double dPreFPS;
+    double dPreInstabilityMulti;
     int iPreLMAttack;
     int iPreLMRelease;
     bool bNoFX;

@@ -219,7 +219,11 @@ void MIDIAudio::GeneratorFunc(double speed, double time, std::vector<MIDIChannel
 		double evTime = ((double)(*e)->GetAbsMicroSec() / 1000000) / speed;
 
 		// quantizes events to the nearest "frame"
-		if (m_dFPS != 0.0) evTime = floor(evTime * m_dFPS) / m_dFPS;
+		if (m_dFPS != 0.0)
+		{
+			evTime += ((static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * m_dInstability) / m_dFPS;
+			evTime = floor(evTime * m_dFPS) / m_dFPS;
+		}
 		
 		double offset = evTime - m_dStartTime;
 		int samples = (int)(48000 * offset) - m_iBufferWritePos;

@@ -104,9 +104,12 @@
 #define IDC_RADIO2                      1088
 #define IDC_RADIO3                      1089
 #define IDC_PICTURE                     1090
+#define IDC_PREAUDINSTM                 1090
 #define IDC_EDIT2                       1091
 #define IDC_VQSIZE                      1091
 #define IDC_UISCALE                     1091
+#define IDC_PREAUDFPSSPIN2              1091
+#define IDC_PREAUDINSTMSPIN             1091
 #define IDC_LICENSE                     1093
 #define IDC_LOCK                        1094
 #define IDC_NSPEED                      1095

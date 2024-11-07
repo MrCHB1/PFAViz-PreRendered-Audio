@@ -1023,7 +1023,7 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                     JumpTo(static_cast<long long>(m_llStartTime - cControls.dFwdBackSecs * 1000000));
                     SDL_PauseAudio(1);
                     PRE_MIDIAudio->Stop();
-                    PRE_MIDIAudio->m_bPaused = false;
+                    PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
                     PRE_MIDIAudio->StartRender(m_llStartTime, false, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
                     SDL_PauseAudio(0);
                     return Success;
@@ -1031,7 +1031,7 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                     JumpTo(static_cast<long long>(m_llStartTime + cControls.dFwdBackSecs * 1000000));
                     SDL_PauseAudio(1);
                     PRE_MIDIAudio->Stop();
-                    PRE_MIDIAudio->m_bPaused = false;
+                    PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
                     PRE_MIDIAudio->StartRender(m_llStartTime, false, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
                     SDL_PauseAudio(0);
                     return Success;

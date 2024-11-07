@@ -167,6 +167,7 @@ void AudioSettings::LoadDefaultValues()
     this->iOutDevice = -1;
     this->sPreSoundfontPath = L"";
     this->dPreFPS = 0.0;
+    this->dPreInstabilityMulti = 1.0;
     this->iPreVoices = 1000;
     this->iPreLMAttack = 10;
     this->iPreLMRelease = 1000;
@@ -315,6 +316,7 @@ void AudioSettings::LoadConfigValues( TiXmlElement *txRoot )
 
     txAudio->QueryIntAttribute("PreAudVoices", &iPreVoices);
     txAudio->QueryDoubleAttribute("PreAudFPS", &dPreFPS);
+    txAudio->QueryDoubleAttribute("PreAudInstabMulti", &dPreInstabilityMulti);
     txAudio->QueryIntAttribute("PreAudLimiterAttack", &iPreLMAttack);
     txAudio->QueryIntAttribute("PreAudLimiterRelease", &iPreLMRelease);
 
@@ -478,6 +480,7 @@ bool AudioSettings::SaveConfigValues( TiXmlElement *txRoot )
     txAudio->SetAttribute("SoundfontPath", Util::WstringToString(sPreSoundfontPath));
     txAudio->SetAttribute("PreAudVoices", iPreVoices);
     txAudio->SetAttribute("PreAudFPS", dPreFPS);
+    txAudio->SetAttribute("PreAudInstabMulti", dPreInstabilityMulti);
     txAudio->SetAttribute("PreAudLimiterAttack", iPreLMAttack);
     txAudio->SetAttribute("PreAudLimiterRelease", iPreLMRelease);
     txAudio->SetAttribute("PreAudNoFX", bNoFX);

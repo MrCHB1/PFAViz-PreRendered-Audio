@@ -233,6 +233,7 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 
             HWND hWndVoices = GetDlgItem(hWnd, IDC_PREVOICES);
             HWND hWndFPS = GetDlgItem(hWnd, IDC_PREAUDFPS);
+            HWND hWndInstM = GetDlgItem(hWnd, IDC_PREAUDINSTM);
 
             HWND hWndLMAttack = GetDlgItem(hWnd, IDC_PRELMATTACK);
             HWND hWndLMRelease = GetDlgItem(hWnd, IDC_PRELMRELEASE);
@@ -246,6 +247,8 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
             SetWindowText(hWndVoices, buf);
             _stprintf_s(buf, TEXT("%f"), cAudio.dPreFPS);
             SetWindowText(hWndFPS, buf);
+            _stprintf_s(buf, TEXT("%f"), cAudio.dPreInstabilityMulti);
+            SetWindowText(hWndInstM, buf);
 
             // no fx
             HWND bNoFxCB = GetDlgItem(hWnd, IDC_PRENOFX);
@@ -300,7 +303,7 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     SetDlgItemTextW(hWnd, IDC_PRESF, L"");
                     return TRUE;
                 }
-                case IDC_PREVOICES: case IDC_PREAUDFPS:
+                case IDC_PREVOICES: case IDC_PREAUDFPS: case IDC_PREAUDINSTM:
                 case IDC_PRELMATTACK: case IDC_PRELMRELEASE:
                 case IDC_PRENOFX:
                 case IDC_PREVELTHRESHLOW: case IDC_PREVELTHRESHUP:
@@ -351,6 +354,21 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                                 double dNewVal = dOldVal - lpnmud->iDelta;
                                 _stprintf_s(buf, TEXT("%g"), dNewVal);
                                 SetWindowText(hWndFPS, buf);
+                            }
+                            return TRUE;
+                        }
+                        case IDC_PREAUDINSTM:
+                        {
+                            TCHAR buf[32];
+                            LPNMUPDOWN lpnmud = (LPNMUPDOWN)lParam;
+                            HWND hWndInstM = GetDlgItem(hWnd, IDC_PREAUDINSTM);
+                            double dOldVal = 0;
+                            int len = GetWindowText(hWndInstM, buf, 32);
+                            if (len > 0 && _stscanf_s(buf, TEXT("%lf"), &dOldVal) == 1)
+                            {
+                                double dNewVal = dOldVal - lpnmud->iDelta;
+                                _stprintf_s(buf, TEXT("%g"), dNewVal);
+                                SetWindowText(hWndInstM, buf);
                             }
                             return TRUE;
                         }
@@ -475,6 +493,24 @@ INT_PTR WINAPI AudioProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
                     {
                         MessageBox(hWnd, TEXT("Please specify a numeric value for the audio \"FPS\""), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
                         PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndFPS, TRUE);
+                        SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
+                        return TRUE;
+                    }
+
+                    TCHAR instabilityBuf[32];
+                    double instabEdit = 0.0;
+                    HWND hwndInstM = GetDlgItem(hWnd, IDC_PREAUDINSTM);
+                    len = GetWindowText(hwndInstM, instabilityBuf, 32);
+                    if (len > 0 && _stscanf_s(instabilityBuf, TEXT("%lf"), &instabEdit) == 1)
+                    {
+                        if (instabEdit != 0.0) instabEdit = clamp(instabEdit, 0, 10);
+                        PRE_MIDIAudio->m_dInstability = instabEdit;
+                        cAudio.dPreInstabilityMulti = instabEdit;
+                    }
+                    else
+                    {
+                        MessageBox(hWnd, TEXT("Please specify a numeric value for the instability multiplier"), TEXT("Error"), MB_OK | MB_ICONEXCLAMATION);
+                        PostMessage(hWnd, WM_NEXTDLGCTL, (WPARAM)hwndInstM, TRUE);
                         SetWindowLongPtr(hWnd, DWLP_MSGRESULT, PSNRET_INVALID);
                         return TRUE;
                     }
