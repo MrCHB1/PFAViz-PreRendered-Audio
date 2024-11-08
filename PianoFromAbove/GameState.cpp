@@ -879,6 +879,18 @@ void MainScreen::SetChannelSettings( const vector< bool > &vMuted, const vector<
     }
 }
 
+void MainScreen::RestartAudio(bool bForce)
+{
+    static Config& config = Config::GetConfig();
+    static PlaybackSettings& cPlayback = config.GetPlaybackSettings();
+
+    //SDL_PauseAudio(1);
+    PRE_MIDIAudio->Stop();
+    PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
+    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
+    //SDL_PauseAudio(0);
+}
+
 GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 {
     // Not thread safe, blah
@@ -903,26 +915,22 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                 case ID_PLAY_STOP:
                     JumpTo(GetMinTime());
                     cPlayback.SetStopped(true);
-                    PRE_MIDIAudio->m_bPaused = true;
+                    RestartAudio(true);
+
                     return Success;
                 case ID_PLAY_SKIPFWD:
                     JumpTo(static_cast<long long>(m_llStartTime + cControls.dFwdBackSecs * 1000000));
-                    SDL_PauseAudio(1);
-                    PRE_MIDIAudio->Stop();
-                    PRE_MIDIAudio->m_bPaused = false;
-                    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
-                    SDL_PauseAudio(0);
+                    RestartAudio(false);
+
                     return Success;
                 case ID_PLAY_SKIPBACK:
                     JumpTo(static_cast<long long>(m_llStartTime - cControls.dFwdBackSecs * 1000000));
-                    SDL_PauseAudio(1);
-                    PRE_MIDIAudio->Stop();
-                    PRE_MIDIAudio->m_bPaused = false;
-                    PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
-                    SDL_PauseAudio(0);
+                    RestartAudio(true);
+
                     return Success;
                 case ID_VIEW_RESETDEVICE:
                     m_pRenderer->ResetDevice();
+
                     return Success;
                 case ID_VIEW_MOVEANDZOOM:
                     if ( cView.GetZoomMove() )
@@ -966,12 +974,14 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                 case VK_SPACE:
                     cPlayback.TogglePaused( true );
                     PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
+
                     return Success;
                 case VK_OEM_PERIOD:
                     JumpTo(GetMinTime());
                     cPlayback.SetStopped(true);
                     PRE_MIDIAudio->m_bPaused = true;
                     PRE_MIDIAudio->StartRender(GetMinTime(), true, &m_vEvents, cPlayback.GetSpeed());
+
                     return Success;
                 case VK_UP:
                     if (bAlt && !bCtrl)
@@ -986,11 +996,7 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                     else if (!bAlt && !bShift)
                     {
                         cPlayback.SetSpeed(cPlayback.GetSpeed() / (1.0 + cControls.dSpeedUpPct / 100.0), true);
-                        SDL_PauseAudio(1);
-                        PRE_MIDIAudio->Stop();
-                        PRE_MIDIAudio->m_bPaused = false;
-                        PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
-                        SDL_PauseAudio(0);
+                        RestartAudio(true);
                     }
                     return Success;
                 case VK_DOWN:
@@ -1006,11 +1012,7 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                     else if (!bAlt && !bShift)
                     {
                         cPlayback.SetSpeed(cPlayback.GetSpeed() * (1.0 + cControls.dSpeedUpPct / 100.0), true);
-                        SDL_PauseAudio(1);
-                        PRE_MIDIAudio->Stop();
-                        PRE_MIDIAudio->m_bPaused = false;
-                        PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
-                        SDL_PauseAudio(0);
+                        RestartAudio(true);
                     }
                     return Success;
                 case 'R':
@@ -1018,22 +1020,17 @@ GameState::GameError MainScreen::MsgProc( HWND hWnd, UINT msg, WPARAM wParam, LP
                     PRE_MIDIAudio->Stop();
                     PRE_MIDIAudio->m_bPaused = false;
                     PRE_MIDIAudio->StartRender(m_llStartTime, true, &m_vEvents, 1);
+
                     return Success;
                 case VK_LEFT:
                     JumpTo(static_cast<long long>(m_llStartTime - cControls.dFwdBackSecs * 1000000));
-                    SDL_PauseAudio(1);
-                    PRE_MIDIAudio->Stop();
-                    PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
-                    PRE_MIDIAudio->StartRender(m_llStartTime, false, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
-                    SDL_PauseAudio(0);
+                    RestartAudio(false);
+
                     return Success;
                 case VK_RIGHT:
                     JumpTo(static_cast<long long>(m_llStartTime + cControls.dFwdBackSecs * 1000000));
-                    SDL_PauseAudio(1);
-                    PRE_MIDIAudio->Stop();
-                    PRE_MIDIAudio->m_bPaused = cPlayback.GetPaused();
-                    PRE_MIDIAudio->StartRender(m_llStartTime, false, &m_vEvents, cPlayback.GetSpeed(), m_iStartPos);
-                    SDL_PauseAudio(0);
+                    RestartAudio(false);
+
                     return Success;
                 case 'M':
                     cPlayback.ToggleMute( true );

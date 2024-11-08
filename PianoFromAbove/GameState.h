@@ -214,6 +214,9 @@ private:
     long long GetMinTime() const { return m_MIDI.GetInfo().llFirstNote - 3000000; }
     long long GetMaxTime() const { return m_MIDI.GetInfo().llTotalMicroSecs + 500000; }
 
+    // MIDI Audio Helpers
+    void RestartAudio( bool bForce );
+
     // Rendering
     void RenderGlobals();
     void RenderLines();
